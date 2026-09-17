@@ -878,6 +878,11 @@ a {
   grid-template-columns: 1fr;
   gap: 0.7rem;
   min-height: 0;
+  flex: 1 1 0;
+}
+
+.judgment-grid .panel {
+  height: 100%;
 }
 
 .panel {
