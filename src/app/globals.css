@@ -170,6 +170,46 @@ a {
   background: rgba(255, 214, 196, 0.28);
 }
 
+.landing-top {
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: 0;
+  z-index: 2;
+  display: flex;
+  justify-content: flex-end;
+  padding: 1.05rem 1.2rem;
+}
+
+.repo-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  color: var(--ink);
+  font-size: 0.92rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  text-decoration: none;
+  transition: opacity 0.15s ease;
+}
+
+.repo-link:hover {
+  opacity: 0.62;
+}
+
+.repo-link-name {
+  max-width: 16rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.workspace-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+}
+
 .landing-center {
   position: relative;
   z-index: 1;
@@ -792,6 +832,10 @@ a {
 }
 
 @media (max-width: 640px) {
+  .workspace-actions .repo-link-name {
+    display: none;
+  }
+
   .composer {
     flex-wrap: wrap;
     padding: 0.7rem 0.75rem 0.7rem;

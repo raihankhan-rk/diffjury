@@ -16,7 +16,7 @@ const mono = IBM_Plex_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "DiffJury — Jev decides if this PR ships",
+  title: "DiffJury — Jev decides if this PR is risky or not",
   description:
     "Paste a public GitHub pull request. DiffJury fetches the dossier and Jev returns a risk verdict — no essays.",
 };

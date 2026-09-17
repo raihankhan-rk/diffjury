@@ -1,6 +1,7 @@
 import { DossierPanel } from "@/components/dossier-panel";
 import { JudgmentPanel } from "@/components/judgment-panel";
 import { Mark } from "@/components/mark";
+import { RepoLink } from "@/components/repo-link";
 import type { GithubPrPayload } from "@/lib/github";
 import type { ReviewResponse } from "@/lib/types";
 
@@ -20,9 +21,12 @@ export function ResultScreen({
           <Mark size={32} />
           <span>DiffJury</span>
         </button>
-        <button type="button" className="btn-quiet" onClick={onReset}>
-          Analyze another
-        </button>
+        <div className="workspace-actions">
+          <RepoLink />
+          <button type="button" className="btn-quiet" onClick={onReset}>
+            Analyze another
+          </button>
+        </div>
       </header>
 
       <div className="workspace-grid">

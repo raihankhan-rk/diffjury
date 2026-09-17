@@ -1,6 +1,6 @@
 # DiffJury
 
-**Jev decides if this PR ships.**
+**Jev decides if this PR is risky or not.**
 
 Paste a public GitHub pull request URL and hit **Analyze**. One click fetches the PR dossier (title, body, diff, contributors) and runs a TypeSafe Jev `systemOne` judgment — risk bars, noul probabilities, and a verdict. No essays. No second button.
 
