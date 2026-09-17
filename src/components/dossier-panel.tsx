@@ -1,5 +1,6 @@
 import { Avatar } from "@/components/avatar";
 import { DiffPanel } from "@/components/diff-panel";
+import { GitHubIcon } from "@/components/github-icon";
 import { PrBody } from "@/components/pr-body";
 import {
   githubProfileUrl,
@@ -97,8 +98,12 @@ export function DossierPanel({ pr }: { pr: GithubPrPayload }) {
             ))}
           </div>
         ) : null}
-        <a className="pr-url" href={pr.htmlUrl} target="_blank" rel="noreferrer">
-          {pr.htmlUrl}
+        <a className="pr-link-btn" href={pr.htmlUrl} target="_blank" rel="noreferrer">
+          <GitHubIcon size={16} />
+          <span>View on GitHub</span>
+          <span className="pr-link-id">
+            {pr.owner}/{pr.repo}#{pr.number}
+          </span>
         </a>
       </header>
 

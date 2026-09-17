@@ -1,4 +1,4 @@
-import { looksLikeGithubLogin, type GithubPerson } from "@/lib/github";
+import { type GithubPerson } from "@/lib/github";
 
 function initials(login: string) {
   const parts = login.replace(/[^A-Za-z0-9]+/g, " ").trim().split(/\s+/);
@@ -23,11 +23,7 @@ export function Avatar({
   person: GithubPerson;
   size?: number;
 }) {
-  const src =
-    person.avatarUrl ??
-    (looksLikeGithubLogin(person.login)
-      ? `https://github.com/${person.login}.png?size=${size * 2}`
-      : null);
+  const src = person.avatarUrl;
 
   if (src) {
     return (

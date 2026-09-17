@@ -64,7 +64,7 @@ function extractIssueNumbers(body: string): string[] {
 }
 
 function personFromUser(user: GithubUser | null | undefined): GithubPerson | null {
-  if (!user?.login) return null;
+  if (!user?.login || isSkippedLogin(user.login)) return null;
   return {
     login: user.login,
     avatarUrl: user.avatar_url ?? `https://github.com/${user.login}.png?size=80`,
@@ -72,7 +72,33 @@ function personFromUser(user: GithubUser | null | undefined): GithubPerson | nul
   };
 }
 
+const SKIP_LOGINS = new Set([
+  "web-flow",
+  "ghost",
+  "cursor",
+  "copilot",
+  "copilot[bot]",
+  "github-actions",
+  "github-actions[bot]",
+]);
+
+function isSkippedLogin(login: string): boolean {
+  const key = login.trim().toLowerCase();
+  return key.length < 2 || SKIP_LOGINS.has(key) || key.endsWith("[bot]");
+}
+
+function isBotEmail(email?: string): boolean {
+  if (!email) return false;
+  const e = email.trim().toLowerCase();
+  return (
+    e.includes("cursor.com") ||
+    e.includes("cursoragent") ||
+    e.endsWith("@noreply.github.com") && /web-flow|copilot|github-actions/.test(e)
+  );
+}
+
 function personFromCoAuthor(name: string, email?: string): GithubPerson | null {
+  if (isBotEmail(email)) return null;
   const trimmedName = name.trim();
   const trimmedEmail = email?.trim() ?? "";
   const noreply = /^(?:\d+\+)?([A-Za-z0-9-]+)@users\.noreply\.github\.com$/i.exec(
@@ -80,13 +106,14 @@ function personFromCoAuthor(name: string, email?: string): GithubPerson | null {
   );
   if (noreply) {
     const login = noreply[1];
+    if (isSkippedLogin(login)) return null;
     return {
       login,
       avatarUrl: `https://github.com/${login}.png?size=80`,
       htmlUrl: `https://github.com/${login}`,
     };
   }
-  if (!trimmedName) return null;
+  if (isSkippedLogin(trimmedName) || trimmedName.length < 2) return null;
   return {
     login: trimmedName,
     avatarUrl: null,
@@ -97,7 +124,9 @@ function personFromCoAuthor(name: string, email?: string): GithubPerson | null {
 function extractCoAuthors(message: string | undefined): GithubPerson[] {
   if (!message) return [];
   const people: GithubPerson[] = [];
-  const re = /Co-authored-by:\s*([^<\n]+?)(?:\s*<([^>]+)>)?/gi;
+  // Official trailer is `Co-authored-by: Name <email>`. Require the email so a
+  // non-greedy name match cannot collapse "Cursor" into the stray letter "C".
+  const re = /Co-authored-by:\s*([^<\n]+?)\s*<([^>\n]+)>/gi;
   let m: RegExpExecArray | null;
   while ((m = re.exec(message)) !== null) {
     const person = personFromCoAuthor(m[1], m[2]);
@@ -107,7 +136,7 @@ function extractCoAuthors(message: string | undefined): GithubPerson[] {
 }
 
 function addPerson(map: Map<string, GithubPerson>, person: GithubPerson | null) {
-  if (!person) return;
+  if (!person || isSkippedLogin(person.login)) return;
   const key = person.login.toLowerCase();
   const existing = map.get(key);
   if (!existing) {
@@ -220,7 +249,7 @@ export async function POST(request: Request) {
       const commits = (await commitsRes.json()) as GithubCommit[];
       for (const c of commits) {
         addPerson(people, personFromUser(c.author));
-        if (c.committer?.login !== "web-flow") {
+        if (c.committer?.login && c.committer.login !== "web-flow") {
           addPerson(people, personFromUser(c.committer));
         }
         for (const co of extractCoAuthors(c.commit?.message)) {

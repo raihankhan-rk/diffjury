@@ -38,23 +38,54 @@ function ProbBar({
   );
 }
 
-function ChoicePanel({ answer }: { answer: SerializedAnswer }) {
+function SegmentedBar({ answer }: { answer: SerializedAnswer }) {
   if (answer.type !== "choice") return null;
   const entries = Object.entries(answer.probabilities).sort((a, b) => b[1] - a[1]);
   return (
-    <div className="space-y-3">
-      {entries.map(([key, prob]) => (
-        <ProbBar
-          key={key}
-          label={formatLabel(key)}
-          value={prob}
-          color={key === answer.choice ? "var(--accent)" : "var(--info)"}
-        />
-      ))}
-      <p className="choice-note">
-        confidence {Math.round(answer.confidence * 100)}%
-      </p>
+    <div className="segment">
+      <div className="segment-track">
+        {entries.map(([key, prob]) => (
+          <span
+            key={key}
+            className={`segment-fill ${key === answer.choice ? "is-winner" : ""}`}
+            style={{ width: `${Math.max(clamp01(prob) * 100, 0)}%` }}
+            title={`${formatLabel(key)} ${Math.round(prob * 100)}%`}
+          />
+        ))}
+      </div>
+      <div className="segment-legend">
+        {entries.map(([key, prob]) => (
+          <span key={key} className={key === answer.choice ? "is-winner" : ""}>
+            {formatLabel(key)} {Math.round(prob * 100)}%
+          </span>
+        ))}
+      </div>
     </div>
+  );
+}
+
+function RiskRing({ value, color }: { value: number; color: string }) {
+  const pct = clamp01(value);
+  const r = 26;
+  const c = 2 * Math.PI * r;
+  return (
+    <svg className="risk-ring" viewBox="0 0 72 72" aria-hidden>
+      <circle cx="36" cy="36" r={r} className="risk-ring-track" />
+      <circle
+        cx="36"
+        cy="36"
+        r={r}
+        className="risk-ring-value"
+        style={{
+          stroke: color,
+          strokeDasharray: `${c}`,
+          strokeDashoffset: `${c * (1 - pct)}`,
+        }}
+      />
+      <text x="36" y="40" textAnchor="middle">
+        {Math.round(pct * 100)}
+      </text>
+    </svg>
   );
 }
 
@@ -75,84 +106,102 @@ export function JudgmentPanel({ data }: { data: ReviewResponse }) {
     (data.answers.verdict.type === "choice" &&
       data.answers.verdict.confidence < 0.55) ||
     tone === "warn";
+  const confidence =
+    data.answers.verdict.type === "choice"
+      ? Math.round(data.answers.verdict.confidence * 100)
+      : null;
 
   return (
     <div className="judgment animate-rise">
       <div
         className="verdict-card"
         style={{
-          borderColor: `${color}40`,
-          background: `linear-gradient(180deg, ${color}12, rgba(255,255,255,0.92))`,
+          borderColor: `${color}55`,
+          background: `radial-gradient(120% 140% at 100% 0%, ${color}22, transparent 46%), linear-gradient(180deg, #fff, ${color}0d)`,
         }}
       >
-        <p className="eyebrow">Verdict · Jev</p>
-        <h2 style={{ color }}>{verdict}</h2>
-        <p className="verdict-sub">
-          Review depth: <strong>{depth}</strong>
-          {humanLook ? " · human look recommended" : null}
-        </p>
-        <p className="verdict-meta">
-          {data.latency_ms} ms · {data.model} · {data.usage.input_tokens}+
-          {data.usage.output_tokens} tokens
-        </p>
+        <div className="verdict-copy">
+          <p className="eyebrow">Verdict · Jev</p>
+          <h2 style={{ color }}>{verdict}</h2>
+          <div className="verdict-chips">
+            <span className="verdict-chip">{depth}</span>
+            {humanLook ? (
+              <span className="verdict-chip is-warn">human look</span>
+            ) : null}
+            {confidence != null ? (
+              <span className="verdict-chip">{confidence}% conf</span>
+            ) : null}
+          </div>
+          <p className="verdict-meta">
+            {data.latency_ms} ms · {data.model} · {data.usage.input_tokens}+
+            {data.usage.output_tokens} tok
+          </p>
+        </div>
+        <div className="verdict-meter">
+          <RiskRing value={scoreToPct(data.answers.risk)} color={color} />
+          <span>overall risk</span>
+        </div>
       </div>
 
-      <section className="panel">
-        <h3>Risk router</h3>
-        <ProbBar
-          label="Overall risk"
-          value={scoreToPct(data.answers.risk)}
-          color="var(--danger)"
-          detail={scoreDetail(data.answers.risk)}
-        />
-        <ProbBar
-          label="Merge blocker"
-          value={noulPct(data.answers.merge_blocker)}
-          color="var(--danger)"
-        />
-        <ProbBar
-          label="Needs design"
-          value={noulPct(data.answers.needs_design)}
-          color="var(--warn)"
-        />
-        <ProbBar
-          label="Needs security"
-          value={noulPct(data.answers.needs_security)}
-          color="var(--warn)"
-        />
-      </section>
+      <div className="judgment-grid">
+        <section className="panel">
+          <h3>Risk router</h3>
+          <ProbBar
+            label="Overall risk"
+            value={scoreToPct(data.answers.risk)}
+            color="var(--danger)"
+            detail={scoreDetail(data.answers.risk)}
+          />
+          <ProbBar
+            label="Merge blocker"
+            value={noulPct(data.answers.merge_blocker)}
+            color="var(--danger)"
+          />
+          <ProbBar
+            label="Needs design"
+            value={noulPct(data.answers.needs_design)}
+            color="var(--warn)"
+          />
+          <ProbBar
+            label="Needs security"
+            value={noulPct(data.answers.needs_security)}
+            color="var(--warn)"
+          />
+        </section>
 
-      <section className="panel">
-        <h3>Review coach</h3>
-        <ProbBar
-          label="Missing tests"
-          value={scoreToPct(data.answers.missing_tests)}
-          color="var(--warn)"
-          detail={scoreDetail(data.answers.missing_tests)}
-        />
-        <ProbBar
-          label="Docs debt"
-          value={scoreToPct(data.answers.docs_debt)}
-          color="var(--info)"
-          detail={scoreDetail(data.answers.docs_debt)}
-        />
-        <ProbBar
-          label="Blast radius"
-          value={scoreToPct(data.answers.blast_radius)}
-          color="var(--danger)"
-          detail={scoreDetail(data.answers.blast_radius)}
-        />
-      </section>
+        <section className="panel">
+          <h3>Review coach</h3>
+          <ProbBar
+            label="Missing tests"
+            value={scoreToPct(data.answers.missing_tests)}
+            color="var(--warn)"
+            detail={scoreDetail(data.answers.missing_tests)}
+          />
+          <ProbBar
+            label="Docs debt"
+            value={scoreToPct(data.answers.docs_debt)}
+            color="var(--info)"
+            detail={scoreDetail(data.answers.docs_debt)}
+          />
+          <ProbBar
+            label="Blast radius"
+            value={scoreToPct(data.answers.blast_radius)}
+            color="var(--danger)"
+            detail={scoreDetail(data.answers.blast_radius)}
+          />
+        </section>
+      </div>
 
-      <section className="panel">
-        <h3>Review depth</h3>
-        <ChoicePanel answer={data.answers.review_depth} />
-      </section>
-
-      <section className="panel">
-        <h3>Verdict distribution</h3>
-        <ChoicePanel answer={data.answers.verdict} />
-      </section>
+      <div className="judgment-grid">
+        <section className="panel">
+          <h3>Review depth</h3>
+          <SegmentedBar answer={data.answers.review_depth} />
+        </section>
+        <section className="panel">
+          <h3>Verdict mix</h3>
+          <SegmentedBar answer={data.answers.verdict} />
+        </section>
+      </div>
     </div>
   );
 }

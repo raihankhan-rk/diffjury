@@ -50,11 +50,5 @@ export function issueUrl(owner: string, repo: string, label: string): string {
 }
 
 export function githubProfileUrl(person: GithubPerson): string | null {
-  return person.htmlUrl ?? (looksLikeGithubLogin(person.login)
-    ? `https://github.com/${person.login}`
-    : null);
-}
-
-export function looksLikeGithubLogin(value: string): boolean {
-  return /^[A-Za-z0-9](?:[A-Za-z0-9-]{0,37}[A-Za-z0-9])?$/.test(value);
+  return person.htmlUrl;
 }
