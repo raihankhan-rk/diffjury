@@ -84,7 +84,9 @@ const SKIP_LOGINS = new Set([
 
 function isSkippedLogin(login: string): boolean {
   const key = login.trim().toLowerCase();
-  return key.length < 2 || SKIP_LOGINS.has(key) || key.endsWith("[bot]");
+  if (key.length < 2 || SKIP_LOGINS.has(key) || key.endsWith("[bot]")) return true;
+  return /^(claude|chatgpt|gpt-|openai|anthropic|cursor|copilot)\b/.test(key) ||
+    key.includes("sonnet");
 }
 
 function isBotEmail(email?: string): boolean {
@@ -93,7 +95,9 @@ function isBotEmail(email?: string): boolean {
   return (
     e.includes("cursor.com") ||
     e.includes("cursoragent") ||
-    e.endsWith("@noreply.github.com") && /web-flow|copilot|github-actions/.test(e)
+    e.includes("anthropic.com") ||
+    e.includes("openai.com") ||
+    (e.endsWith("@noreply.github.com") && /web-flow|copilot|github-actions/.test(e))
   );
 }
 
