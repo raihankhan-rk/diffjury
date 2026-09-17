@@ -556,10 +556,11 @@ a {
 }
 
 .person-chip {
-  padding: 0.22rem 0.6rem 0.22rem 0.22rem;
+  padding: 0.28rem 0.7rem 0.28rem 0.28rem;
   border: 1px solid var(--line);
   background: #fff;
   color: var(--ink);
+  font-weight: 600;
   text-decoration: none;
 }
 
@@ -577,6 +578,7 @@ a {
   border-radius: 999px;
   object-fit: cover;
   flex-shrink: 0;
+  box-shadow: 0 0 0 1px rgba(18, 20, 26, 0.08);
 }
 
 .avatar-fallback {

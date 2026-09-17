@@ -36,7 +36,7 @@ function PersonChip({
   const href = githubProfileUrl(person);
   const inner = (
     <>
-      <Avatar person={person} size={22} />
+      <Avatar person={person} size={32} />
       <span>{person.login}</span>
       {badge ? <em>{badge}</em> : null}
     </>
