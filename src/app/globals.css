@@ -782,6 +782,13 @@ a {
   overflow: hidden;
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 22px;
+  background:
+    radial-gradient(
+      80% 130% at 100% 0%,
+      color-mix(in srgb, var(--verdict-color) 42%, transparent),
+      transparent 58%
+    ),
+    #111c2a;
   color: #fff;
   box-shadow: 0 20px 48px rgba(18, 32, 47, 0.18);
 }
@@ -1115,6 +1122,32 @@ a {
 @media (max-width: 640px) {
   .workspace-actions .repo-link-name {
     display: none;
+  }
+
+  .decision-hero {
+    min-height: 160px;
+    padding: 1.1rem;
+  }
+
+  .risk-dial {
+    width: 82px;
+    height: 82px;
+    flex-basis: 82px;
+  }
+
+  .route-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .route-item {
+    align-items: center;
+    padding: 0.7rem 0.85rem;
+    border-right: 0;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .route-item:last-child {
+    border-bottom: 0;
   }
 
   .composer {

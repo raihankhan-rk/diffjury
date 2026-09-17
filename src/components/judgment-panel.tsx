@@ -235,7 +235,6 @@ export function JudgmentPanel({ data }: { data: ReviewResponse }) {
         className="decision-hero"
         style={{
           "--verdict-color": color,
-          background: `radial-gradient(80% 130% at 100% 0%, ${color}44, transparent 58%), #111c2a`,
         } as CSSProperties}
       >
         <div className="decision-copy">
