@@ -1119,6 +1119,26 @@ a {
   color: #c0c5cf;
 }
 
+@media (min-width: 1024px) {
+  .focus-card {
+    display: flex;
+    min-height: 0;
+    flex: 1;
+    flex-direction: column;
+  }
+
+  .focus-list {
+    display: grid;
+    min-height: 0;
+    flex: 1;
+    grid-template-rows: repeat(3, 1fr);
+  }
+
+  .focus-row {
+    min-height: 0;
+  }
+}
+
 @media (max-width: 640px) {
   .workspace-actions .repo-link-name {
     display: none;
