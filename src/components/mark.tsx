@@ -1,18 +1,25 @@
+/** Git pull-request / branch-merge mark. */
 export function Mark({ size = 40 }: { size?: number }) {
   return (
     <svg
       width={size}
       height={size}
-      viewBox="0 0 40 40"
+      viewBox="0 0 32 32"
       fill="none"
       aria-hidden
       className="shrink-0"
     >
-      <rect width="40" height="40" rx="12" fill="#12202f" />
-      <rect x="8" y="9" width="10" height="22" rx="3" fill="#7ee0c4" />
-      <rect x="22" y="9" width="10" height="22" rx="3" fill="#c9d6f2" />
-      <path d="M10.5 20h5" stroke="#12202f" strokeWidth="1.6" strokeLinecap="round" />
-      <path d="M24.5 16h5M24.5 24h5" stroke="#12202f" strokeWidth="1.6" strokeLinecap="round" />
+      <rect width="32" height="32" rx="9" fill="#12202f" />
+      <circle cx="10.5" cy="9" r="2.7" fill="#7ee0c4" />
+      <circle cx="10.5" cy="23" r="2.7" fill="#7ee0c4" />
+      <circle cx="22" cy="23" r="2.7" fill="#7ee0c4" />
+      <path
+        d="M10.5 11.7v8.6M10.5 13.6h7.6c2.2 0 3.9 1.8 3.9 4v2.7"
+        stroke="#7ee0c4"
+        strokeWidth="2.3"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
     </svg>
   );
 }
