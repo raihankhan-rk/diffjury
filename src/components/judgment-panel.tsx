@@ -1,3 +1,5 @@
+import type { CSSProperties, ReactNode } from "react";
+
 import type { ReviewResponse, SerializedAnswer } from "@/lib/types";
 import {
   clamp01,
@@ -8,200 +10,302 @@ import {
   verdictTone,
 } from "@/lib/verdict";
 
-function ProbBar({
-  label,
+function RiskDial({
   value,
-  color = "var(--accent)",
+  color,
   detail,
 }: {
-  label: string;
   value: number;
-  color?: string;
-  detail?: string;
+  color: string;
+  detail: string;
 }) {
-  const pct = Math.round(clamp01(value) * 100);
-  return (
-    <div className="prob">
-      <div className="prob-row">
-        <span>{label}</span>
-        <span className="prob-val" style={{ color }}>
-          {detail ?? `${pct}%`}
-        </span>
-      </div>
-      <div className="bar-track">
-        <div
-          className="animate-bar bar-fill"
-          style={{ width: `${pct}%`, background: color }}
-        />
-      </div>
-    </div>
-  );
-}
-
-function SegmentedBar({ answer }: { answer: SerializedAnswer }) {
-  if (answer.type !== "choice") return null;
-  const entries = Object.entries(answer.probabilities).sort((a, b) => b[1] - a[1]);
-  return (
-    <div className="segment">
-      <div className="segment-track">
-        {entries.map(([key, prob]) => (
-          <span
-            key={key}
-            className={`segment-fill ${key === answer.choice ? "is-winner" : ""}`}
-            style={{ width: `${Math.max(clamp01(prob) * 100, 0)}%` }}
-            title={`${formatLabel(key)} ${Math.round(prob * 100)}%`}
-          />
-        ))}
-      </div>
-      <div className="segment-legend">
-        {entries.map(([key, prob]) => (
-          <span key={key} className={key === answer.choice ? "is-winner" : ""}>
-            {formatLabel(key)} {Math.round(prob * 100)}%
-          </span>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function RiskRing({ value, color }: { value: number; color: string }) {
   const pct = clamp01(value);
-  const r = 26;
+  const r = 32;
   const c = 2 * Math.PI * r;
   return (
-    <svg className="risk-ring" viewBox="0 0 72 72" aria-hidden>
-      <circle cx="36" cy="36" r={r} className="risk-ring-track" />
+    <svg className="risk-dial" viewBox="0 0 84 84" aria-hidden>
+      <circle cx="42" cy="42" r={r} className="risk-dial-track" />
       <circle
-        cx="36"
-        cy="36"
+        cx="42"
+        cy="42"
         r={r}
-        className="risk-ring-value"
+        className="risk-dial-value"
         style={{
           stroke: color,
           strokeDasharray: `${c}`,
           strokeDashoffset: `${c * (1 - pct)}`,
         }}
       />
-      <text x="36" y="40" textAnchor="middle">
-        {Math.round(pct * 100)}
+      <text x="42" y="40" textAnchor="middle" className="risk-dial-number">
+        {detail}
+      </text>
+      <text x="42" y="53" textAnchor="middle" className="risk-dial-label">
+        risk
       </text>
     </svg>
   );
 }
 
-function scoreDetail(answer: SerializedAnswer) {
-  return answer.type === "score" ? `${answer.score.toFixed(2)} / 3` : undefined;
+function Icon({
+  children,
+  tone = "neutral",
+}: {
+  children: ReactNode;
+  tone?: "neutral" | "ok" | "watch" | "high";
+}) {
+  return <span className={`judgment-icon is-${tone}`}>{children}</span>;
 }
 
-function choiceLabel(answer: SerializedAnswer) {
-  return answer.type === "choice" ? formatLabel(answer.choice) : "—";
+function ShieldIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path d="M12 3 19 6v5c0 4.6-2.8 8-7 10-4.2-2-7-5.4-7-10V6l7-3Z" />
+      <path d="m9.3 12 1.8 1.8 3.8-4" />
+    </svg>
+  );
+}
+
+function BranchIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden>
+      <circle cx="7" cy="5" r="2" />
+      <circle cx="7" cy="19" r="2" />
+      <circle cx="17" cy="19" r="2" />
+      <path d="M7 7v10M7 9h5a5 5 0 0 1 5 5v3" />
+    </svg>
+  );
+}
+
+function LayersIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path d="m12 3 8 4-8 4-8-4 8-4Z" />
+      <path d="m4 12 8 4 8-4M4 17l8 4 8-4" />
+    </svg>
+  );
+}
+
+function CheckIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path d="m5 12 4 4L19 6" />
+    </svg>
+  );
+}
+
+function confidenceValue(answer: SerializedAnswer): number {
+  return answer.type === "choice" || answer.type === "score"
+    ? clamp01(answer.confidence)
+    : 0;
+}
+
+function scoreValue(answer: SerializedAnswer): number {
+  return answer.type === "score" ? clamp01(answer.score / 3) : 0;
+}
+
+function severity(value: number): "ok" | "watch" | "high" {
+  if (value >= 0.67) return "high";
+  if (value >= 0.34) return "watch";
+  return "ok";
+}
+
+function severityLabel(value: number): string {
+  const level = severity(value);
+  if (level === "high") return "Priority";
+  if (level === "watch") return "Review";
+  return "Clear";
+}
+
+function routeCopy(label: string, value: number): string {
+  const level = severity(value);
+  if (label === "Merge blocker") {
+    return level === "high"
+      ? "Resolve before merge"
+      : level === "watch"
+        ? "Verify before merge"
+        : "No blocker detected";
+  }
+  if (level === "high") return `Route to ${label.toLowerCase()} reviewer`;
+  if (level === "watch") return `Give ${label.toLowerCase()} a closer look`;
+  return `No ${label.toLowerCase()} review needed`;
+}
+
+function verdictPresentation(verdict: string) {
+  if (verdict === "block") {
+    return {
+      kicker: "Do not merge",
+      title: "Stop the merge",
+      copy: "Major issues need resolution before this PR moves forward.",
+    };
+  }
+  if (verdict === "request_changes") {
+    return {
+      kicker: "Changes requested",
+      title: "Fix before merge",
+      copy: "Address the flagged review areas, then run the jury again.",
+    };
+  }
+  return {
+    kicker: "Merge recommendation",
+    title: "Ready with follow-up",
+    copy: "Safe to proceed; capture remaining nits as follow-up work.",
+  };
+}
+
+function FocusRow({
+  label,
+  value,
+  note,
+}: {
+  label: string;
+  value: number;
+  note: string;
+}) {
+  const level = severity(value);
+  return (
+    <div className="focus-row">
+      <div className="focus-rank">
+        <span className={`focus-dot is-${level}`} />
+      </div>
+      <div className="focus-copy">
+        <div className="focus-label">
+          <strong>{label}</strong>
+          <span className={`signal-state is-${level}`}>{severityLabel(value)}</span>
+        </div>
+        <p>{note}</p>
+      </div>
+      <div className="focus-score">
+        <strong>{Math.round(value * 100)}</strong>
+        <span>/100</span>
+      </div>
+    </div>
+  );
 }
 
 export function JudgmentPanel({ data }: { data: ReviewResponse }) {
   const tone = verdictTone(data.answers);
   const color = toneColor(tone);
-  const verdict = choiceLabel(data.answers.verdict);
-  const depth = choiceLabel(data.answers.review_depth);
-  const humanLook =
-    (data.answers.verdict.type === "choice" &&
-      data.answers.verdict.confidence < 0.55) ||
-    tone === "warn";
-  const confidence =
-    data.answers.verdict.type === "choice"
-      ? Math.round(data.answers.verdict.confidence * 100)
-      : null;
+  const verdict =
+    data.answers.verdict.type === "choice" ? data.answers.verdict.choice : "";
+  const depth =
+    data.answers.review_depth.type === "choice"
+      ? formatLabel(data.answers.review_depth.choice)
+      : "standard";
+  const confidence = confidenceValue(data.answers.verdict);
+  const risk = scoreToPct(data.answers.risk);
+  const presentation = verdictPresentation(verdict);
+  const routes = [
+    {
+      label: "Merge blocker",
+      value: noulPct(data.answers.merge_blocker),
+      icon: <BranchIcon />,
+    },
+    {
+      label: "Security",
+      value: noulPct(data.answers.needs_security),
+      icon: <ShieldIcon />,
+    },
+    {
+      label: "Design",
+      value: noulPct(data.answers.needs_design),
+      icon: <LayersIcon />,
+    },
+  ];
+  const focus = [
+    {
+      label: "Test coverage",
+      value: scoreValue(data.answers.missing_tests),
+      note: "How much important behavior appears untested.",
+    },
+    {
+      label: "Blast radius",
+      value: scoreValue(data.answers.blast_radius),
+      note: "How broadly a defect could affect the system.",
+    },
+    {
+      label: "Documentation",
+      value: scoreValue(data.answers.docs_debt),
+      note: "How much context maintainers may be missing.",
+    },
+  ].sort((a, b) => b.value - a.value);
 
   return (
     <div className="judgment animate-rise">
-      <div
-        className="verdict-card"
+      <section
+        className="decision-hero"
         style={{
-          borderColor: `${color}55`,
-          background: `radial-gradient(120% 140% at 100% 0%, ${color}22, transparent 46%), linear-gradient(180deg, #fff, ${color}0d)`,
-        }}
+          "--verdict-color": color,
+          background: `radial-gradient(80% 130% at 100% 0%, ${color}44, transparent 58%), #111c2a`,
+        } as CSSProperties}
       >
-        <div className="verdict-copy">
-          <p className="eyebrow">Verdict · Jev</p>
-          <h2 style={{ color }}>{verdict}</h2>
-          <div className="verdict-chips">
-            <span className="verdict-chip">{depth}</span>
-            {humanLook ? (
-              <span className="verdict-chip is-warn">human look</span>
-            ) : null}
-            {confidence != null ? (
-              <span className="verdict-chip">{confidence}% conf</span>
-            ) : null}
+        <div className="decision-copy">
+          <div className="decision-kicker">
+            <span className="decision-live" />
+            {presentation.kicker}
           </div>
-          <p className="verdict-meta">
-            {data.latency_ms} ms · {data.model} · {data.usage.input_tokens}+
-            {data.usage.output_tokens} tok
-          </p>
+          <h2>{presentation.title}</h2>
+          <p>{presentation.copy}</p>
+          <div className="decision-meta">
+            <span>{depth} review</span>
+            <span>{Math.round(confidence * 100)}% verdict confidence</span>
+          </div>
         </div>
-        <div className="verdict-meter">
-          <RiskRing value={scoreToPct(data.answers.risk)} color={color} />
-          <span>overall risk</span>
+        <RiskDial
+          value={risk}
+          color={color}
+          detail={data.answers.risk.type === "score" ? data.answers.risk.score.toFixed(1) : "—"}
+        />
+      </section>
+
+      <section className="judgment-card route-card">
+        <div className="judgment-heading">
+          <div>
+            <p className="eyebrow">Reviewer routing</p>
+            <h3>Who needs to look?</h3>
+          </div>
+          <span>Jev signals</span>
         </div>
-      </div>
+        <div className="route-grid">
+          {routes.map((route) => {
+            const level = severity(route.value);
+            return (
+              <div className={`route-item is-${level}`} key={route.label}>
+                <Icon tone={level}>{route.icon}</Icon>
+                <div>
+                  <div className="route-title">
+                    <strong>{route.label}</strong>
+                    <span>{Math.round(route.value * 100)}%</span>
+                  </div>
+                  <p>{routeCopy(route.label, route.value)}</p>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </section>
 
-      <div className="judgment-grid">
-        <section className="panel">
-          <h3>Risk router</h3>
-          <ProbBar
-            label="Overall risk"
-            value={scoreToPct(data.answers.risk)}
-            color="var(--danger)"
-            detail={scoreDetail(data.answers.risk)}
-          />
-          <ProbBar
-            label="Merge blocker"
-            value={noulPct(data.answers.merge_blocker)}
-            color="var(--danger)"
-          />
-          <ProbBar
-            label="Needs design"
-            value={noulPct(data.answers.needs_design)}
-            color="var(--warn)"
-          />
-          <ProbBar
-            label="Needs security"
-            value={noulPct(data.answers.needs_security)}
-            color="var(--warn)"
-          />
-        </section>
+      <section className="judgment-card focus-card">
+        <div className="judgment-heading">
+          <div>
+            <p className="eyebrow">Review plan</p>
+            <h3>Start here</h3>
+          </div>
+          <Icon tone="neutral">
+            <CheckIcon />
+          </Icon>
+        </div>
+        <div className="focus-list">
+          {focus.map((item) => (
+            <FocusRow key={item.label} {...item} />
+          ))}
+        </div>
+      </section>
 
-        <section className="panel">
-          <h3>Review coach</h3>
-          <ProbBar
-            label="Missing tests"
-            value={scoreToPct(data.answers.missing_tests)}
-            color="var(--warn)"
-            detail={scoreDetail(data.answers.missing_tests)}
-          />
-          <ProbBar
-            label="Docs debt"
-            value={scoreToPct(data.answers.docs_debt)}
-            color="var(--info)"
-            detail={scoreDetail(data.answers.docs_debt)}
-          />
-          <ProbBar
-            label="Blast radius"
-            value={scoreToPct(data.answers.blast_radius)}
-            color="var(--danger)"
-            detail={scoreDetail(data.answers.blast_radius)}
-          />
-        </section>
-      </div>
-
-      <div className="judgment-grid">
-        <section className="panel">
-          <h3>Review depth</h3>
-          <SegmentedBar answer={data.answers.review_depth} />
-        </section>
-        <section className="panel">
-          <h3>Verdict mix</h3>
-          <SegmentedBar answer={data.answers.verdict} />
-        </section>
-      </div>
+      <footer className="judgment-foot">
+        <span>Jev {data.model.replace(/^jev-?/, "")}</span>
+        <span>{data.latency_ms} ms</span>
+        <span>{data.usage.input_tokens + data.usage.output_tokens} tokens</span>
+      </footer>
     </div>
   );
 }
