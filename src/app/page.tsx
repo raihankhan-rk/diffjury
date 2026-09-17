@@ -13,6 +13,20 @@ type FormState = {
   linkedIssue: string;
 };
 
+type GithubPrPayload = {
+  title: string;
+  body: string;
+  diff: string;
+  author: string | null;
+  contributors: string[];
+  linkedIssues: string[];
+  htmlUrl: string;
+  number: number;
+  owner: string;
+  repo: string;
+  error?: string;
+};
+
 const EMPTY: FormState = {
   title: "",
   body: "",
@@ -76,7 +90,7 @@ function ProbBar({
           {detail ?? `${pct}%`}
         </span>
       </div>
-      <div className="h-2 overflow-hidden rounded-full bg-[rgba(255,255,255,0.06)]">
+      <div className="bar-track h-2 overflow-hidden rounded-full">
         <div
           className="animate-bar h-full rounded-full"
           style={{
@@ -128,12 +142,12 @@ function Results({ data }: { data: ReviewResponse }) {
     tone === "warn";
 
   return (
-    <section className="animate-rise space-y-6">
+    <section className="animate-rise space-y-5">
       <div
         className="rounded-2xl border px-5 py-5"
         style={{
           borderColor: `${color}55`,
-          background: `linear-gradient(135deg, ${color}14, rgba(255,255,255,0.02))`,
+          background: `linear-gradient(135deg, ${color}14, rgba(255,255,255,0.9))`,
         }}
       >
         <p className="text-xs uppercase tracking-[0.14em] text-[var(--muted)]">
@@ -152,8 +166,8 @@ function Results({ data }: { data: ReviewResponse }) {
         </p>
       </div>
 
-      <div className="grid gap-6 md:grid-cols-2">
-        <div className="space-y-4 rounded-2xl border border-[var(--line)] bg-[rgba(10,14,20,0.55)] p-5">
+      <div className="grid gap-4">
+        <div className="panel space-y-4 p-5">
           <h3 className="text-sm font-semibold tracking-wide text-[var(--muted)] uppercase">
             Risk router
           </h3>
@@ -184,7 +198,7 @@ function Results({ data }: { data: ReviewResponse }) {
           />
         </div>
 
-        <div className="space-y-4 rounded-2xl border border-[var(--line)] bg-[rgba(10,14,20,0.55)] p-5">
+        <div className="panel space-y-4 p-5">
           <h3 className="text-sm font-semibold tracking-wide text-[var(--muted)] uppercase">
             Review coach
           </h3>
@@ -219,16 +233,14 @@ function Results({ data }: { data: ReviewResponse }) {
             }
           />
         </div>
-      </div>
 
-      <div className="grid gap-6 md:grid-cols-2">
-        <div className="rounded-2xl border border-[var(--line)] bg-[rgba(10,14,20,0.55)] p-5">
+        <div className="panel p-5">
           <h3 className="mb-4 text-sm font-semibold tracking-wide text-[var(--muted)] uppercase">
             Review depth distribution
           </h3>
           <ChoicePanel answer={data.answers.review_depth} />
         </div>
-        <div className="rounded-2xl border border-[var(--line)] bg-[rgba(10,14,20,0.55)] p-5">
+        <div className="panel p-5">
           <h3 className="mb-4 text-sm font-semibold tracking-wide text-[var(--muted)] uppercase">
             Verdict distribution
           </h3>
@@ -239,10 +251,38 @@ function Results({ data }: { data: ReviewResponse }) {
   );
 }
 
+function EmptyResults() {
+  return (
+    <div className="animate-fade flex min-h-[280px] flex-col items-center justify-center rounded-2xl border border-dashed border-[var(--line)] bg-[rgba(255,255,255,0.45)] px-6 py-12 text-center">
+      <span className="mb-3 inline-flex h-10 w-10 items-center justify-center rounded-full bg-[var(--accent-dim)] text-[var(--accent)]">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
+          <path
+            d="M12 3v18M5 10l7-7 7 7"
+            stroke="currentColor"
+            strokeWidth="1.8"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </svg>
+      </span>
+      <p className="text-base font-medium text-[var(--text)]">
+        Run Analyze to see Jev&apos;s judgment
+      </p>
+      <p className="mt-2 max-w-xs text-sm text-[var(--muted)]">
+        Paste a PR or load the sample, then hit Analyze. Verdicts land here.
+      </p>
+    </div>
+  );
+}
+
 export default function HomePage() {
   const [form, setForm] = useState<FormState>(EMPTY);
+  const [prUrl, setPrUrl] = useState("");
+  const [contributors, setContributors] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
+  const [fetchingPr, setFetchingPr] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [prFetchError, setPrFetchError] = useState<string | null>(null);
   const [result, setResult] = useState<ReviewResponse | null>(null);
 
   const canSubmit = useMemo(
@@ -262,7 +302,48 @@ export default function HomePage() {
       ciLog: SAMPLE_PR.ciLog ?? "",
       linkedIssue: SAMPLE_PR.linkedIssue ?? "",
     });
+    setContributors([]);
+    setPrUrl("");
     setError(null);
+    setPrFetchError(null);
+  }
+
+  async function fetchGithubPr() {
+    if (!prUrl.trim() || fetchingPr) return;
+    setFetchingPr(true);
+    setPrFetchError(null);
+    setError(null);
+
+    try {
+      const res = await fetch("/api/github-pr", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url: prUrl.trim() }),
+      });
+      const data = (await res.json()) as GithubPrPayload;
+      if (!res.ok) {
+        throw new Error(data.error || `Failed to fetch PR (${res.status})`);
+      }
+
+      const linked =
+        data.linkedIssues?.length > 0
+          ? data.linkedIssues.join(", ")
+          : "";
+
+      setForm((prev) => ({
+        ...prev,
+        title: data.title,
+        body: data.body,
+        diff: data.diff,
+        linkedIssue: linked || prev.linkedIssue,
+      }));
+      setContributors(data.contributors ?? []);
+    } catch (err) {
+      setPrFetchError(err instanceof Error ? err.message : "Failed to fetch PR");
+      setContributors([]);
+    } finally {
+      setFetchingPr(false);
+    }
   }
 
   async function onSubmit(event: FormEvent) {
@@ -299,7 +380,7 @@ export default function HomePage() {
   }
 
   return (
-    <main className="mx-auto min-h-screen w-full max-w-5xl px-5 pb-16 pt-10 sm:px-8 sm:pt-14">
+    <main className="mx-auto min-h-screen w-full max-w-7xl px-5 pb-16 pt-10 sm:px-8 sm:pt-14">
       <header className="animate-rise mb-10 max-w-2xl">
         <p className="mb-3 inline-flex items-center gap-2 font-mono text-xs tracking-[0.16em] text-[var(--accent)] uppercase">
           <span className="animate-pulse-soft inline-block h-1.5 w-1.5 rounded-full bg-[var(--accent)]" />
@@ -311,96 +392,146 @@ export default function HomePage() {
         </p>
       </header>
 
-      <form onSubmit={onSubmit} className="animate-rise-delay space-y-5">
-        <div className="flex flex-wrap gap-3">
-          <button type="button" className="btn btn-ghost" onClick={loadSample}>
-            Load sample PR
-          </button>
-          <button type="submit" className="btn btn-primary" disabled={!canSubmit || loading}>
-            {loading ? "Judging…" : "Analyze PR"}
-          </button>
-        </div>
+      <div className="grid items-start gap-8 lg:grid-cols-2 lg:gap-10">
+        <form onSubmit={onSubmit} className="animate-rise-delay space-y-5">
+          <div className="flex flex-wrap gap-3">
+            <button type="button" className="btn btn-ghost" onClick={loadSample}>
+              Load sample PR
+            </button>
+            <button type="submit" className="btn btn-primary" disabled={!canSubmit || loading}>
+              {loading ? "Judging…" : "Analyze PR"}
+            </button>
+          </div>
 
-        <div>
-          <label className="label" htmlFor="title">
-            Title
-          </label>
-          <input
-            id="title"
-            className="field"
-            value={form.title}
-            onChange={(e) => update("title", e.target.value)}
-            placeholder="feat(auth): add session refresh middleware"
-            required
-          />
-        </div>
-
-        <div>
-          <label className="label" htmlFor="body">
-            Body
-          </label>
-          <textarea
-            id="body"
-            className="field field-mono min-h-28"
-            value={form.body}
-            onChange={(e) => update("body", e.target.value)}
-            placeholder="PR description, test plan, rollout notes…"
-          />
-        </div>
-
-        <div>
-          <label className="label" htmlFor="diff">
-            Diff
-          </label>
-          <textarea
-            id="diff"
-            className="field field-mono min-h-48"
-            value={form.diff}
-            onChange={(e) => update("diff", e.target.value)}
-            placeholder="Paste the unified diff…"
-            required
-          />
-        </div>
-
-        <div className="grid gap-5 md:grid-cols-2">
           <div>
-            <label className="label" htmlFor="ciLog">
-              CI log (optional)
+            <label className="label" htmlFor="prUrl">
+              GitHub PR URL
             </label>
-            <textarea
-              id="ciLog"
-              className="field field-mono min-h-28"
-              value={form.ciLog}
-              onChange={(e) => update("ciLog", e.target.value)}
-              placeholder="Test / lint / typecheck output"
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-stretch">
+              <input
+                id="prUrl"
+                className="field"
+                value={prUrl}
+                onChange={(e) => setPrUrl(e.target.value)}
+                placeholder="https://github.com/owner/repo/pull/123"
+                inputMode="url"
+                autoComplete="off"
+              />
+              <button
+                type="button"
+                className="btn btn-ghost shrink-0 sm:self-stretch"
+                onClick={fetchGithubPr}
+                disabled={!prUrl.trim() || fetchingPr}
+              >
+                {fetchingPr ? "Fetching…" : "Fetch PR"}
+              </button>
+            </div>
+            {prFetchError ? (
+              <p className="mt-2 text-sm text-[var(--danger)]">{prFetchError}</p>
+            ) : (
+              <p className="mt-2 text-xs text-[var(--muted)]">
+                Public PRs only. Optional server <code className="font-mono">GITHUB_TOKEN</code>{" "}
+                raises rate limits.
+              </p>
+            )}
+          </div>
+
+          {contributors.length > 0 ? (
+            <div className="rounded-xl border border-[var(--line)] bg-[rgba(255,255,255,0.7)] px-4 py-3">
+              <p className="text-xs font-semibold tracking-wide text-[var(--muted)] uppercase">
+                Contributors
+              </p>
+              <p className="mt-1.5 text-sm text-[var(--text)]">{contributors.join(" · ")}</p>
+            </div>
+          ) : null}
+
+          <div>
+            <label className="label" htmlFor="title">
+              Title
+            </label>
+            <input
+              id="title"
+              className="field"
+              value={form.title}
+              onChange={(e) => update("title", e.target.value)}
+              placeholder="feat(auth): add session refresh middleware"
+              required
             />
           </div>
+
           <div>
-            <label className="label" htmlFor="linkedIssue">
-              Linked issue (optional)
+            <label className="label" htmlFor="body">
+              Body
             </label>
             <textarea
-              id="linkedIssue"
+              id="body"
               className="field field-mono min-h-28"
-              value={form.linkedIssue}
-              onChange={(e) => update("linkedIssue", e.target.value)}
-              placeholder="#482 Users get intermittent 401s…"
+              value={form.body}
+              onChange={(e) => update("body", e.target.value)}
+              placeholder="PR description, test plan, rollout notes…"
             />
           </div>
-        </div>
-      </form>
 
-      {error ? (
-        <p className="mt-6 rounded-xl border border-[rgba(240,113,120,0.35)] bg-[rgba(240,113,120,0.08)] px-4 py-3 text-sm text-[var(--danger)]">
-          {error}
-        </p>
-      ) : null}
+          <div>
+            <label className="label" htmlFor="diff">
+              Diff
+            </label>
+            <textarea
+              id="diff"
+              className="field field-mono min-h-48"
+              value={form.diff}
+              onChange={(e) => update("diff", e.target.value)}
+              placeholder="Paste the unified diff…"
+              required
+            />
+          </div>
 
-      {result ? (
-        <div className="mt-10">
-          <Results data={result} />
-        </div>
-      ) : null}
+          <div className="grid gap-5 md:grid-cols-2">
+            <div>
+              <label className="label" htmlFor="ciLog">
+                CI log (optional)
+              </label>
+              <textarea
+                id="ciLog"
+                className="field field-mono min-h-28"
+                value={form.ciLog}
+                onChange={(e) => update("ciLog", e.target.value)}
+                placeholder="Test / lint / typecheck output"
+              />
+            </div>
+            <div>
+              <label className="label" htmlFor="linkedIssue">
+                Linked issue (optional)
+              </label>
+              <textarea
+                id="linkedIssue"
+                className="field field-mono min-h-28"
+                value={form.linkedIssue}
+                onChange={(e) => update("linkedIssue", e.target.value)}
+                placeholder="#482 Users get intermittent 401s…"
+              />
+            </div>
+          </div>
+
+          {error ? (
+            <p className="rounded-xl border border-[rgba(214,69,80,0.28)] bg-[rgba(214,69,80,0.06)] px-4 py-3 text-sm text-[var(--danger)]">
+              {error}
+            </p>
+          ) : null}
+        </form>
+
+        <aside className="animate-rise-delay lg:sticky lg:top-8 lg:max-h-[calc(100vh-4rem)] lg:overflow-y-auto lg:pb-4">
+          <div className="mb-3 flex items-baseline justify-between gap-3">
+            <h2 className="text-sm font-semibold tracking-wide text-[var(--muted)] uppercase">
+              Judgment
+            </h2>
+            {result ? (
+              <span className="font-mono text-xs text-[var(--muted)]">live</span>
+            ) : null}
+          </div>
+          {result ? <Results data={result} /> : <EmptyResults />}
+        </aside>
+      </div>
 
       <footer className="mt-16 border-t border-[var(--line)] pt-6 text-sm text-[var(--muted)]">
         Powered by TypeSafe Jev · decisions only
