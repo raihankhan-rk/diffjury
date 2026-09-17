@@ -1,12 +1,17 @@
 import { NextResponse } from "next/server";
 
-export const runtime = "nodejs";
+import {
+  parsePrUrl,
+  type GithubPerson,
+  type GithubPrPayload,
+} from "@/lib/github";
 
-const PR_URL_RE =
-  /^https?:\/\/(?:www\.)?github\.com\/([^/]+)\/([^/]+)\/pull\/(\d+)\/?(?:[?#].*)?$/i;
+export const runtime = "nodejs";
 
 type GithubUser = {
   login?: string;
+  avatar_url?: string;
+  html_url?: string;
 };
 
 type GithubPr = {
@@ -15,6 +20,13 @@ type GithubPr = {
   user: GithubUser | null;
   html_url: string;
   number: number;
+  additions?: number;
+  deletions?: number;
+  changed_files?: number;
+  state?: string;
+  draft?: boolean;
+  merged?: boolean;
+  created_at?: string;
 };
 
 type GithubCommit = {
@@ -26,17 +38,6 @@ type GithubCommit = {
     message?: string;
   };
 };
-
-function parsePrUrl(raw: string): { owner: string; repo: string; number: number } | null {
-  const trimmed = raw.trim();
-  const match = trimmed.match(PR_URL_RE);
-  if (!match) return null;
-  return {
-    owner: match[1],
-    repo: match[2].replace(/\.git$/i, ""),
-    number: Number(match[3]),
-  };
-}
 
 function githubHeaders(): HeadersInit {
   const headers: Record<string, string> = {
@@ -62,16 +63,60 @@ function extractIssueNumbers(body: string): string[] {
   return [...found];
 }
 
-function extractCoAuthors(message: string | undefined): string[] {
+function personFromUser(user: GithubUser | null | undefined): GithubPerson | null {
+  if (!user?.login) return null;
+  return {
+    login: user.login,
+    avatarUrl: user.avatar_url ?? `https://github.com/${user.login}.png?size=80`,
+    htmlUrl: user.html_url ?? `https://github.com/${user.login}`,
+  };
+}
+
+function personFromCoAuthor(name: string, email?: string): GithubPerson | null {
+  const trimmedName = name.trim();
+  const trimmedEmail = email?.trim() ?? "";
+  const noreply = /^(?:\d+\+)?([A-Za-z0-9-]+)@users\.noreply\.github\.com$/i.exec(
+    trimmedEmail,
+  );
+  if (noreply) {
+    const login = noreply[1];
+    return {
+      login,
+      avatarUrl: `https://github.com/${login}.png?size=80`,
+      htmlUrl: `https://github.com/${login}`,
+    };
+  }
+  if (!trimmedName) return null;
+  return {
+    login: trimmedName,
+    avatarUrl: null,
+    htmlUrl: null,
+  };
+}
+
+function extractCoAuthors(message: string | undefined): GithubPerson[] {
   if (!message) return [];
-  const names: string[] = [];
-  const re = /Co-authored-by:\s*([^<\n]+?)(?:\s*<[^>]*>)?/gi;
+  const people: GithubPerson[] = [];
+  const re = /Co-authored-by:\s*([^<\n]+?)(?:\s*<([^>]+)>)?/gi;
   let m: RegExpExecArray | null;
   while ((m = re.exec(message)) !== null) {
-    const name = m[1].trim();
-    if (name) names.push(name);
+    const person = personFromCoAuthor(m[1], m[2]);
+    if (person) people.push(person);
   }
-  return names;
+  return people;
+}
+
+function addPerson(map: Map<string, GithubPerson>, person: GithubPerson | null) {
+  if (!person) return;
+  const key = person.login.toLowerCase();
+  const existing = map.get(key);
+  if (!existing) {
+    map.set(key, person);
+    return;
+  }
+  if (!existing.avatarUrl && person.avatarUrl) {
+    map.set(key, person);
+  }
 }
 
 async function readGithubError(res: Response): Promise<string> {
@@ -167,37 +212,45 @@ export async function POST(request: Request) {
     const pr = (await prRes.json()) as GithubPr;
     const diff = await diffRes.text();
 
-    const contributors = new Set<string>();
-    if (pr.user?.login) contributors.add(pr.user.login);
+    const people = new Map<string, GithubPerson>();
+    const author = personFromUser(pr.user);
+    addPerson(people, author);
 
     if (commitsRes.ok) {
       const commits = (await commitsRes.json()) as GithubCommit[];
       for (const c of commits) {
-        if (c.author?.login) contributors.add(c.author.login);
-        if (c.committer?.login && c.committer.login !== "web-flow") {
-          contributors.add(c.committer.login);
+        addPerson(people, personFromUser(c.author));
+        if (c.committer?.login !== "web-flow") {
+          addPerson(people, personFromUser(c.committer));
         }
         for (const co of extractCoAuthors(c.commit?.message)) {
-          contributors.add(co);
+          addPerson(people, co);
         }
       }
     }
 
     const prBody = pr.body ?? "";
-    const linkedIssues = extractIssueNumbers(prBody);
-
-    return NextResponse.json({
+    const payload: GithubPrPayload = {
       title: pr.title,
       body: prBody,
       diff,
-      author: pr.user?.login ?? null,
-      contributors: [...contributors],
-      linkedIssues,
+      author,
+      contributors: [...people.values()],
+      linkedIssues: extractIssueNumbers(prBody),
       htmlUrl: pr.html_url,
       number: pr.number,
       owner,
       repo,
-    });
+      additions: pr.additions ?? null,
+      deletions: pr.deletions ?? null,
+      changedFiles: pr.changed_files ?? null,
+      state: pr.state ?? null,
+      draft: Boolean(pr.draft),
+      merged: Boolean(pr.merged),
+      createdAt: pr.created_at ?? null,
+    };
+
+    return NextResponse.json(payload);
   } catch (error) {
     const message = error instanceof Error ? error.message : "Failed to fetch PR";
     return NextResponse.json({ error: message }, { status: 502 });

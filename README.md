@@ -1,8 +1,15 @@
 # DiffJury
 
-**Jev decides if this PR ships. No essays. Just judgments.**
+**Jev decides if this PR ships.**
 
-Paste a pull request (title, body, diff, optional CI log / linked issue) — or paste a **public GitHub PR URL** to autofill. One TypeSafe Jev `systemOne` call returns a risk router + code review coach — scores, noul probabilities, and a final verdict. No LLM text generation.
+Paste a public GitHub pull request URL and hit **Analyze**. One click fetches the PR dossier (title, body, diff, contributors) and runs a TypeSafe Jev `systemOne` judgment — risk bars, noul probabilities, and a verdict. No essays. No second button.
+
+## How it works
+
+1. Landing: one large URL field. Optional quiet sample chip.
+2. Analyze fetches `POST /api/github-pr`, then immediately `POST /api/review`.
+3. Success opens a split view — dossier on the left, judgment on the right.
+4. Failure stays on the landing screen with a clear error.
 
 ## Stack
 
@@ -45,11 +52,11 @@ npm run build
 npm run start
 ```
 
-Use **Load sample PR** then **Analyze PR** to exercise the full nine-answer payload. Or paste a public `https://github.com/owner/repo/pull/N` URL and click **Fetch PR**.
-
 ## API
 
 ### `POST /api/review`
+
+Unchanged. Accepts a PR payload and returns Jev answers.
 
 ```json
 {
@@ -71,7 +78,7 @@ Fetches a **public** GitHub PR via the REST API (no user OAuth). Uses unauthenti
 { "url": "https://github.com/owner/repo/pull/123" }
 ```
 
-Response includes `title`, `body`, `diff`, `author`, `contributors`, `linkedIssues`, and metadata. Clear errors for invalid URL, 404/private, and rate limits.
+Response includes `title`, `body`, `diff`, `author` / `contributors` (login + `avatarUrl` + `htmlUrl`), `linkedIssues`, file stats, and metadata. Clear errors for invalid URL, 404/private, and rate limits.
 
 ## Railway
 

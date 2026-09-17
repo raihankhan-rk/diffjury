@@ -1,6 +1,9 @@
 import type { ReviewInput } from "@/lib/types";
 
-/** Realistic TypeScript PR fixture for demos. */
+/** Small public PR used by the quiet sample chip on the landing screen. */
+export const SAMPLE_PR_URL = "https://github.com/actions/checkout/pull/1";
+
+/** Realistic TypeScript PR fixture for API/docs demos. */
 export const SAMPLE_PR: ReviewInput = {
   title: "feat(auth): add session refresh middleware for API routes",
   body: `## Summary
