@@ -10,11 +10,15 @@ function isNonEmptyString(value: unknown): value is string {
 }
 
 function isMaxTokensExceeded(error: unknown): boolean {
-  const details = [
-    error instanceof Error ? error.message : String(error),
-    typeof error === "object" && error !== null ? JSON.stringify(error) : "",
-  ];
-  return details.some((detail) => detail.includes("max_tokens_exceeded"));
+  if (error instanceof Error && error.message.includes("max_tokens_exceeded")) {
+    return true;
+  }
+
+  try {
+    return JSON.stringify(error).includes("max_tokens_exceeded");
+  } catch {
+    return false;
+  }
 }
 
 export async function POST(request: Request) {

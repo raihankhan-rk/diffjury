@@ -6,11 +6,10 @@ import {
   estimateTokens,
   preparePrState,
   PR_STATE_TOKEN_BUDGET,
-  type ReviewInput,
 } from "./types.ts";
 
 test("leaves an under-budget PR state byte-identical", () => {
-  const input: ReviewInput = {
+  const input = {
     title: "Keep all context",
     body: "A short body with whitespace.  ",
     diff: "diff --git a/src/a.ts b/src/a.ts\n+export const a = 1;\n",
@@ -34,7 +33,7 @@ test("prioritizes source files and marks omitted lockfiles", () => {
     "+++ b/package-lock.json",
     `+${'"dependency": "1.0.0"\n'.repeat(3_500)}`,
   ].join("\n");
-  const input: ReviewInput = {
+  const input = {
     title: "A synthetic oversized PR",
     body: "Context ".repeat(2_000),
     diff: `${lockfileDiff}\n${sourceDiff}`,

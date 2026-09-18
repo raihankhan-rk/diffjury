@@ -224,7 +224,15 @@ export function preparePrState(input: ReviewInput): string {
   }
 
   const statePrefix = `${fixedSections.join("\n\n")}\n\nDIFF:\n`;
-  const diffParts = preamble ? [preamble] : [];
+  const diffParts = preamble
+    ? [
+        truncateWithMarker(
+          preamble,
+          OPTIONAL_CONTEXT_CHAR_LIMIT,
+          DIFF_TRUNCATED_MARKER,
+        ),
+      ]
+    : [];
   const prioritized = [...sections].sort(
     (a, b) =>
       Number(a.deprioritized) - Number(b.deprioritized) ||
