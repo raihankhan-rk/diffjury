@@ -8,7 +8,7 @@ import { parsePrUrl, type GithubPrPayload } from "@/lib/github";
 import { SAMPLE_PR_URL } from "@/lib/sample-pr";
 import type { ReviewResponse } from "@/lib/types";
 
-type Phase = "landing" | "fetching" | "judging" | "result";
+type Phase = "landing" | "analyzing" | "result";
 
 export default function HomePage() {
   const [prUrl, setPrUrl] = useState("");
@@ -32,43 +32,25 @@ export default function HomePage() {
     setError(null);
     setDossier(null);
     setReview(null);
-    setPhase("fetching");
+    setPhase("analyzing");
 
     try {
-      const prRes = await fetch("/api/github-pr", {
+      const res = await fetch("/api/analyze", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ url: rawUrl.trim() }),
       });
-      const prData = (await prRes.json()) as GithubPrPayload & { error?: string };
-      if (!prRes.ok) {
-        throw new Error(prData.error || `Failed to fetch PR (${prRes.status})`);
-      }
-
-      setPhase("judging");
-
-      const reviewRes = await fetch("/api/review", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          title: prData.title,
-          body: prData.body ?? "",
-          diff: prData.diff,
-          linkedIssue:
-            prData.linkedIssues?.length > 0
-              ? prData.linkedIssues.join(", ")
-              : undefined,
-        }),
-      });
-      const reviewData = (await reviewRes.json()) as ReviewResponse & {
+      const data = (await res.json()) as {
+        pr?: GithubPrPayload;
+        review?: ReviewResponse;
         error?: string;
       };
-      if (!reviewRes.ok) {
-        throw new Error(reviewData.error || `Review failed (${reviewRes.status})`);
+      if (!res.ok || !data.pr || !data.review) {
+        throw new Error(data.error || `Failed to analyze PR (${res.status})`);
       }
 
-      setDossier(prData);
-      setReview(reviewData);
+      setDossier(data.pr);
+      setReview(data.review);
       setPhase("result");
     } catch (err) {
       setDossier(null);
@@ -80,7 +62,7 @@ export default function HomePage() {
 
   function onAnalyze(event: FormEvent) {
     event.preventDefault();
-    if (phase === "fetching" || phase === "judging") return;
+    if (phase === "analyzing") return;
     void analyzeUrl(prUrl);
   }
 

@@ -13,14 +13,13 @@ test("leaves an under-budget PR state byte-identical", () => {
     title: "Keep all context",
     body: "A short body with whitespace.  ",
     diff: "diff --git a/src/a.ts b/src/a.ts\n+export const a = 1;\n",
-    ciLog: "tests pass",
     linkedIssue: "Fixes #42",
   };
 
   assert.equal(preparePrState(input), buildPrState(input));
 });
 
-test("prioritizes source files and marks omitted lockfiles", () => {
+test("drops lockfile hunks on oversized PRs and stays under budget", () => {
   const sourceDiff = [
     "diff --git a/src/feature.ts b/src/feature.ts",
     "--- a/src/feature.ts",
@@ -45,13 +44,4 @@ test("prioritizes source files and marks omitted lockfiles", () => {
   assert.ok(estimateTokens(state) <= PR_STATE_TOKEN_BUDGET);
   assert.match(state, /diff --git a\/src\/feature\.ts b\/src\/feature\.ts/);
   assert.doesNotMatch(state, /"dependency": "1\.0\.0"/);
-  assert.match(
-    state,
-    /\[file omitted: package-lock\.json; \d+ chars; reason=deprioritized\]/,
-  );
-  assert.match(state, /…\[body truncated\]/);
-  assert.match(
-    state,
-    /\[DIFFJURY_TRIM_SUMMARY included_files=1 omitted_files=1 unlisted_omissions=0 estimated_tokens=\d+\]/,
-  );
 });

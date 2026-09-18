@@ -2,12 +2,7 @@ import "server-only";
 
 import { choice, noul, score, TypeSafeClient } from "@typesafe-ai/sdk";
 
-import {
-  preparePrState,
-  type ReviewInput,
-  type ReviewResponse,
-  type SerializedAnswer,
-} from "./types";
+import { preparePrState, type ReviewInput, type ReviewResponse } from "./types";
 
 const REVIEW_QUESTIONS = {
   risk: score("Overall merge risk for this pull request", [
@@ -55,83 +50,24 @@ const REVIEW_QUESTIONS = {
   }),
 } as const;
 
-function serializeAnswer(answer: unknown): SerializedAnswer {
-  const a = answer as {
-    type: string;
-    noul?: number;
-    choice?: string;
-    confidence?: number;
-    score?: number;
-    probabilities?: Record<string, number>;
-    legend?: Record<string | number, unknown>;
-  };
-
-  if (a.type === "noul") {
-    return { type: "noul", noul: a.noul ?? 0 };
-  }
-
-  if (a.type === "choice") {
-    return {
-      type: "choice",
-      choice: String(a.choice ?? ""),
-      confidence: a.confidence ?? 0,
-      probabilities: Object.fromEntries(
-        Object.entries(a.probabilities ?? {}).map(([k, v]) => [k, Number(v)]),
-      ),
-    };
-  }
-
-  const legend: Record<string, string> = {};
-  for (const [k, v] of Object.entries(a.legend ?? {})) {
-    legend[String(k)] = typeof v === "string" ? v : JSON.stringify(v);
-  }
-
-  return {
-    type: "score",
-    score: a.score ?? 0,
-    confidence: a.confidence ?? 0,
-    probabilities: Object.fromEntries(
-      Object.entries(a.probabilities ?? {}).map(([k, v]) => [String(k), Number(v)]),
-    ),
-    legend,
-  };
-}
-
 export async function runReview(input: ReviewInput): Promise<ReviewResponse> {
   const apiKey = process.env.TYPESAFE_API_KEY;
   if (!apiKey?.trim()) {
     throw new Error("TYPESAFE_API_KEY is not configured");
   }
 
-  const client = new TypeSafeClient({
-    apiKey,
-    defaultModel: "jev-latest",
-  });
-
+  const client = new TypeSafeClient({ apiKey });
   const started = Date.now();
   const result = await client.systemOne({
     model: "jev-latest",
     state: preparePrState(input),
     questions: REVIEW_QUESTIONS,
   });
-  const latency_ms = Date.now() - started;
-
-  const answers = {
-    risk: serializeAnswer(result.answers.risk),
-    review_depth: serializeAnswer(result.answers.review_depth),
-    needs_design: serializeAnswer(result.answers.needs_design),
-    needs_security: serializeAnswer(result.answers.needs_security),
-    merge_blocker: serializeAnswer(result.answers.merge_blocker),
-    missing_tests: serializeAnswer(result.answers.missing_tests),
-    docs_debt: serializeAnswer(result.answers.docs_debt),
-    blast_radius: serializeAnswer(result.answers.blast_radius),
-    verdict: serializeAnswer(result.answers.verdict),
-  };
 
   return {
-    answers,
+    answers: result.answers as ReviewResponse["answers"],
     model: result.model,
-    latency_ms,
+    latency_ms: Date.now() - started,
     usage: {
       input_tokens: result.usage.input_tokens,
       output_tokens: result.usage.output_tokens,

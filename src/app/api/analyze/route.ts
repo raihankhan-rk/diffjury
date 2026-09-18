@@ -5,6 +5,7 @@ import {
   type GithubPerson,
   type GithubPrPayload,
 } from "@/lib/github";
+import { runReview } from "@/lib/review";
 
 export const runtime = "nodejs";
 
@@ -283,21 +284,23 @@ export async function POST(request: Request) {
       createdAt: pr.created_at ?? null,
     };
 
-    return NextResponse.json(payload);
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "Failed to fetch PR";
-    return NextResponse.json({ error: message }, { status: 502 });
-  }
-}
+    const review = await runReview({
+      title: payload.title,
+      body: payload.body,
+      diff: payload.diff,
+      linkedIssue:
+        payload.linkedIssues.length > 0 ? payload.linkedIssues.join(", ") : undefined,
+    });
 
-/** Also support GET ?url= for quick testing */
-export async function GET(request: Request) {
-  const { searchParams } = new URL(request.url);
-  const url = searchParams.get("url") ?? "";
-  const synthetic = new Request(request.url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ url }),
-  });
-  return POST(synthetic);
+    return NextResponse.json({ pr: payload, review });
+  } catch (error) {
+    const message =
+      error instanceof Error && error.message.includes("max_tokens_exceeded")
+        ? "PR too large even after trimming"
+        : error instanceof Error
+          ? error.message
+          : "Failed to analyze PR";
+    const status = message.includes("TYPESAFE_API_KEY") ? 503 : 502;
+    return NextResponse.json({ error: message }, { status });
+  }
 }

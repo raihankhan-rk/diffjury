@@ -48,7 +48,3 @@ export function issueUrl(owner: string, repo: string, label: string): string {
   const n = label.replace(/^#/, "");
   return `https://github.com/${owner}/${repo}/issues/${n}`;
 }
-
-export function githubProfileUrl(person: GithubPerson): string | null {
-  return person.htmlUrl;
-}
