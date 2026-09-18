@@ -11,6 +11,8 @@ Paste a public GitHub pull request URL and hit **Analyze**. One click fetches th
 3. Success opens a split view — dossier on the left, judgment on the right.
 4. Failure stays on the landing screen with a clear error.
 
+Large PRs are trimmed locally to fit Jev's ~32k/64k token limits; small PRs keep their full, unchanged context.
+
 ## Stack
 
 - Next.js 15 App Router + TypeScript + Tailwind

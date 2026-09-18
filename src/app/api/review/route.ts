@@ -9,6 +9,14 @@ function isNonEmptyString(value: unknown): value is string {
   return typeof value === "string" && value.trim().length > 0;
 }
 
+function isMaxTokensExceeded(error: unknown): boolean {
+  const details = [
+    error instanceof Error ? error.message : String(error),
+    typeof error === "object" && error !== null ? JSON.stringify(error) : "",
+  ];
+  return details.some((detail) => detail.includes("max_tokens_exceeded"));
+}
+
 export async function POST(request: Request) {
   let body: unknown;
   try {
@@ -42,7 +50,11 @@ export async function POST(request: Request) {
     const result = await runReview(input);
     return NextResponse.json(result);
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Review failed";
+    const message = isMaxTokensExceeded(error)
+      ? "PR too large even after trimming"
+      : error instanceof Error
+        ? error.message
+        : "Review failed";
     const status = message.includes("TYPESAFE_API_KEY") ? 503 : 502;
     return NextResponse.json({ error: message }, { status });
   }

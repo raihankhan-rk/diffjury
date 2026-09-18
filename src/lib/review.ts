@@ -2,7 +2,12 @@ import "server-only";
 
 import { choice, noul, score, TypeSafeClient } from "@typesafe-ai/sdk";
 
-import { buildPrState, type ReviewInput, type ReviewResponse, type SerializedAnswer } from "./types";
+import {
+  preparePrState,
+  type ReviewInput,
+  type ReviewResponse,
+  type SerializedAnswer,
+} from "./types";
 
 const REVIEW_QUESTIONS = {
   risk: score("Overall merge risk for this pull request", [
@@ -106,7 +111,7 @@ export async function runReview(input: ReviewInput): Promise<ReviewResponse> {
   const started = Date.now();
   const result = await client.systemOne({
     model: "jev-latest",
-    state: buildPrState(input),
+    state: preparePrState(input),
     questions: REVIEW_QUESTIONS,
   });
   const latency_ms = Date.now() - started;

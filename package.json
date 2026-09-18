@@ -6,7 +6,9 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "test": "node --experimental-strip-types --test src/lib/types.test.ts",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@typesafe-ai/sdk": "^0.6.0",
