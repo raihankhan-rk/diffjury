@@ -34,7 +34,7 @@ async function readCount(filePath: string): Promise<number> {
   }
 }
 
-async function useDirectory(
+async function openDirectory(
   directory: string,
   persistence: AnalyzeStats["persistence"],
 ): Promise<StatsStore> {
@@ -50,10 +50,10 @@ async function useDirectory(
 
 async function initializeStore(): Promise<StatsStore> {
   try {
-    return await useDirectory(VOLUME_DIR, "volume");
+    return await openDirectory(VOLUME_DIR, "volume");
   } catch {
     try {
-      return await useDirectory(TEMPORARY_DIR, "temporary");
+      return await openDirectory(TEMPORARY_DIR, "temporary");
     } catch {
       return { analyzes: 0, persistence: "temporary", filePath: "" };
     }
@@ -79,7 +79,7 @@ async function writeStore(store: StatsStore): Promise<void> {
 }
 
 async function moveToTemporary(analyzes: number): Promise<StatsStore> {
-  const store = await useDirectory(TEMPORARY_DIR, "temporary");
+  const store = await openDirectory(TEMPORARY_DIR, "temporary");
   store.analyzes = Math.max(store.analyzes, analyzes);
   await writeStore(store);
   storePromise = Promise.resolve(store);
