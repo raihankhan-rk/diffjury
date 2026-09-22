@@ -7,15 +7,11 @@
   --soft: #8b93a6;
   --line: rgba(18, 20, 26, 0.08);
   --accent: #0d7a5f;
-  --accent-strong: #0a6550;
   --warn: #b45309;
   --danger: #d64550;
-  --info: #2a6fbe;
   --add: #147a4a;
   --del: #c2413b;
   --paper: #ffffff;
-  --track: rgba(18, 20, 26, 0.08);
-  --shadow: 0 18px 50px rgba(28, 39, 62, 0.08);
 }
 
 @theme inline {
@@ -61,24 +57,6 @@ a {
   }
 }
 
-@keyframes bar-fill {
-  from {
-    transform: scaleX(0);
-  }
-  to {
-    transform: scaleX(1);
-  }
-}
-
-@keyframes fade-in {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
-}
-
 @keyframes spin {
   to {
     transform: rotate(360deg);
@@ -91,11 +69,6 @@ a {
 
 .animate-rise-delay {
   animation: rise-in 0.7s ease-out 0.08s both;
-}
-
-.animate-bar {
-  transform-origin: left center;
-  animation: bar-fill 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 .spin {
@@ -652,46 +625,12 @@ a {
 }
 
 .pr-body {
-  display: grid;
-  gap: 0.85rem;
+  margin: 0;
   color: #243044;
   font-size: 0.98rem;
   line-height: 1.65;
   text-align: left;
-}
-
-.pr-body p,
-.pr-body li,
-.pr-heading {
-  margin: 0;
   white-space: pre-wrap;
-}
-
-.pr-heading {
-  font-size: 1.05rem;
-  font-weight: 700;
-  letter-spacing: -0.02em;
-}
-
-.pr-list {
-  margin: 0;
-  padding-left: 1.15rem;
-  display: grid;
-  gap: 0.3rem;
-}
-
-.pr-body a {
-  color: #1d4f8c;
-  text-decoration: underline;
-  text-underline-offset: 2px;
-}
-
-.inline-code {
-  padding: 0.08rem 0.32rem;
-  border-radius: 5px;
-  background: rgba(18, 20, 26, 0.05);
-  font-family: var(--font-mono), ui-monospace, monospace;
-  font-size: 0.84em;
 }
 
 .diff-panel {

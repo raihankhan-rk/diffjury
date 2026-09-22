@@ -99,10 +99,6 @@ function confidenceValue(answer: SerializedAnswer): number {
     : 0;
 }
 
-function scoreValue(answer: SerializedAnswer): number {
-  return answer.type === "score" ? clamp01(answer.score / 3) : 0;
-}
-
 function severity(value: number): "ok" | "watch" | "high" {
   if (value >= 0.67) return "high";
   if (value >= 0.34) return "watch";
@@ -214,17 +210,17 @@ export function JudgmentPanel({ data }: { data: ReviewResponse }) {
   const focus = [
     {
       label: "Test coverage",
-      value: scoreValue(data.answers.missing_tests),
+      value: scoreToPct(data.answers.missing_tests),
       note: "How much important behavior appears untested.",
     },
     {
       label: "Blast radius",
-      value: scoreValue(data.answers.blast_radius),
+      value: scoreToPct(data.answers.blast_radius),
       note: "How broadly a defect could affect the system.",
     },
     {
       label: "Documentation",
-      value: scoreValue(data.answers.docs_debt),
+      value: scoreToPct(data.answers.docs_debt),
       note: "How much context maintainers may be missing.",
     },
   ].sort((a, b) => b.value - a.value);

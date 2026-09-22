@@ -5,7 +5,7 @@ import { Mark } from "@/components/mark";
 import { RepoLink } from "@/components/repo-link";
 import { TAGLINE } from "@/lib/site";
 
-type Phase = "landing" | "fetching" | "judging";
+type Phase = "landing" | "analyzing";
 
 export function LandingScreen({
   prUrl,
@@ -25,8 +25,6 @@ export function LandingScreen({
   error: string | null;
 }) {
   const busy = phase !== "landing";
-  const status =
-    phase === "fetching" ? "Fetching PR…" : phase === "judging" ? "Judging…" : null;
 
   return (
     <div className="landing">
@@ -68,7 +66,7 @@ export function LandingScreen({
               {busy ? (
                 <span className="inline-flex items-center gap-2">
                   <Spinner />
-                  {status}
+                  Analyzing…
                 </span>
               ) : (
                 "Analyze"

@@ -1,13 +1,7 @@
 import { Avatar } from "@/components/avatar";
 import { DiffPanel } from "@/components/diff-panel";
 import { GitHubIcon } from "@/components/github-icon";
-import { PrBody } from "@/components/pr-body";
-import {
-  githubProfileUrl,
-  issueUrl,
-  type GithubPerson,
-  type GithubPrPayload,
-} from "@/lib/github";
+import { issueUrl, type GithubPerson, type GithubPrPayload } from "@/lib/github";
 
 function statusLabel(pr: GithubPrPayload) {
   if (pr.merged) return "Merged";
@@ -34,7 +28,7 @@ function PersonChip({
   person: GithubPerson;
   badge?: string;
 }) {
-  const href = githubProfileUrl(person);
+  const href = person.htmlUrl;
   const inner = (
     <>
       <Avatar person={person} size={32} />
@@ -124,7 +118,9 @@ export function DossierPanel({ pr }: { pr: GithubPrPayload }) {
 
       <section className="dossier-section">
         <h2>Description</h2>
-        <PrBody text={pr.body} owner={pr.owner} repo={pr.repo} />
+        <p className="pr-body">
+          {pr.body.trim() || "No description provided."}
+        </p>
       </section>
 
       <section className="dossier-section">
