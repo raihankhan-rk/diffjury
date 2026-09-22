@@ -6,8 +6,40 @@ import {
   type GithubPrPayload,
 } from "@/lib/github";
 import { runReview } from "@/lib/review";
+import { getAnalyzeStats, incrementAnalyzeCount } from "@/lib/stats";
 
 export const runtime = "nodejs";
+
+type AnalyzeLogContext = {
+  startedAt: number;
+  url: string;
+  owner?: string;
+  repo?: string;
+  number?: number;
+};
+
+async function analyzeResponse(
+  data: unknown,
+  httpStatus: number,
+  context: AnalyzeLogContext,
+  status: "ok" | "error",
+): Promise<NextResponse> {
+  const stats =
+    status === "ok" ? await incrementAnalyzeCount() : await getAnalyzeStats();
+  console.info(
+    [
+      "diffjury_analyze",
+      `url=${JSON.stringify(context.url)}`,
+      `owner=${JSON.stringify(context.owner ?? "-")}`,
+      `repo=${JSON.stringify(context.repo ?? "-")}`,
+      `number=${context.number ?? "-"}`,
+      `status=${status}`,
+      `total=${stats.analyzes}`,
+      `ms=${Date.now() - context.startedAt}`,
+    ].join(" "),
+  );
+  return NextResponse.json(data, { status: httpStatus });
+}
 
 type GithubUser = {
   login?: string;
@@ -191,30 +223,40 @@ function mapGithubStatus(status: number, message: string): { status: number; err
 }
 
 export async function POST(request: Request) {
+  const logContext: AnalyzeLogContext = { startedAt: Date.now(), url: "" };
   let body: unknown;
   try {
     body = await request.json();
   } catch {
-    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+    return analyzeResponse({ error: "Invalid JSON body" }, 400, logContext, "error");
   }
 
   const url =
     typeof body === "object" && body !== null && "url" in body
       ? String((body as { url: unknown }).url ?? "")
       : "";
+  logContext.url = url.trim();
 
   const parsed = parsePrUrl(url);
   if (!parsed) {
-    return NextResponse.json(
+    return analyzeResponse(
       {
         error:
           "Invalid PR URL. Use a public GitHub link like https://github.com/owner/repo/pull/123",
       },
-      { status: 400 },
+      400,
+      logContext,
+      "error",
     );
   }
 
   const { owner, repo, number } = parsed;
+  Object.assign(logContext, {
+    url: `https://github.com/${owner}/${repo}/pull/${number}`,
+    owner,
+    repo,
+    number,
+  });
   const base = `https://api.github.com/repos/${owner}/${repo}/pulls/${number}`;
   const headers = githubHeaders();
 
@@ -231,15 +273,22 @@ export async function POST(request: Request) {
     if (!prRes.ok) {
       const message = await readGithubError(prRes);
       const mapped = mapGithubStatus(prRes.status, message);
-      return NextResponse.json({ error: mapped.error }, { status: mapped.status });
+      return analyzeResponse(
+        { error: mapped.error },
+        mapped.status,
+        logContext,
+        "error",
+      );
     }
 
     if (!diffRes.ok) {
       const message = await readGithubError(diffRes);
       const mapped = mapGithubStatus(diffRes.status, message);
-      return NextResponse.json(
+      return analyzeResponse(
         { error: mapped.error || "Failed to fetch PR diff" },
-        { status: mapped.status },
+        mapped.status,
+        logContext,
+        "error",
       );
     }
 
@@ -292,7 +341,7 @@ export async function POST(request: Request) {
         payload.linkedIssues.length > 0 ? payload.linkedIssues.join(", ") : undefined,
     });
 
-    return NextResponse.json({ pr: payload, review });
+    return analyzeResponse({ pr: payload, review }, 200, logContext, "ok");
   } catch (error) {
     const message =
       error instanceof Error && error.message.includes("max_tokens_exceeded")
@@ -301,6 +350,6 @@ export async function POST(request: Request) {
           ? error.message
           : "Failed to analyze PR";
     const status = message.includes("TYPESAFE_API_KEY") ? 503 : 502;
-    return NextResponse.json({ error: message }, { status });
+    return analyzeResponse({ error: message }, status, logContext, "error");
   }
 }

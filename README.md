@@ -66,15 +66,27 @@ Fetches a **public** GitHub PR and runs Jev. No user OAuth. Unauthenticated GitH
 
 Response is `{ "pr": { ...dossier }, "review": { "answers", "model", "latency_ms", "usage" } }`. Clear errors for invalid URL, 404/private, rate limits, and missing `TYPESAFE_API_KEY`.
 
+### `GET /api/stats`
+
+Returns the anonymous successful-analysis count:
+
+```json
+{ "analyzes": 42, "persistence": "volume" }
+```
+
+The same count is displayed at `/stats`. DiffJury stores only this aggregate
+counter; it does not store PR URLs or user identities.
+
 ## Railway
 
 1. Create a new Railway service from this repo (Docker or Nixpacks).
 2. Set variable **`TYPESAFE_API_KEY`** in the Railway service environment (same name as local).
 3. Optionally set **`GITHUB_TOKEN`** for higher PR-fetch rate limits.
-4. Railway injects `PORT`; the Dockerfile and Nixpacks start command bind `0.0.0.0`.
-5. Health: `GET /` serves the UI.
+4. Mount a Railway volume at **`/data`** to persist the anonymous analyze count across deploys. Without it, DiffJury falls back to `/tmp` and reports `"persistence": "temporary"`.
+5. Railway injects `PORT`; the Dockerfile and Nixpacks start command bind `0.0.0.0`.
+6. Health: `GET /` serves the UI.
 
-**Dockerfile** — multi-stage Next.js standalone build (preferred if you select Docker).
+**Dockerfile** — multi-stage Next.js standalone build (preferred if you select Docker). Its entrypoint makes `/data` writable, then drops to the unprivileged runtime user.
 
 **Nixpacks** — `nixpacks.toml` uses Node 22, `npm ci`, `npm run build`, then `next start -H 0.0.0.0 -p $PORT`.
 
@@ -82,7 +94,7 @@ Response is `{ "pr": { ...dossier }, "review": { "answers", "model", "latency_ms
 
 - `TYPESAFE_API_KEY` and `GITHUB_TOKEN` are read only from `process.env` on the server.
 - Ship `.env.example` with empty values; do not commit real keys.
-- No GitHub OAuth, no database, no LLM fallback in v1.
+- No GitHub OAuth, analytics SDK, user identity store, or LLM fallback in v1.
 - PR fetch only works for **public** repositories.
 
 ## License
